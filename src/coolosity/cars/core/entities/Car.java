@@ -1,9 +1,9 @@
 package coolosity.cars.core.entities;
 
-import java.awt.Color;
-import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
+
+import coolosity.cars.core.display.Resources;
 
 public class Car extends Entity
 {
@@ -25,10 +25,7 @@ public class Car extends Entity
 
 	@Override
 	public void draw(BufferedImage img, int xloc, int yloc, int w, int h, double rotation) {
-		BufferedImage car = new BufferedImage(200,130,BufferedImage.TYPE_INT_ARGB);
-		Graphics gc = car.getGraphics();
-		gc.setColor(Color.BLUE);
-		gc.fillRect(0, 0, car.getWidth(), car.getHeight());
+		BufferedImage car = Resources.getImage("car");
 		Graphics2D g = (Graphics2D) img.getGraphics();
 		g.translate(xloc+w/2, yloc+h/2);
 		g.rotate(Math.toRadians(rotation));

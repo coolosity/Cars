@@ -1,6 +1,7 @@
 package coolosity.cars.core.display;
 
 import java.awt.event.KeyListener;
+import java.awt.event.MouseWheelListener;
 import java.awt.image.BufferedImage;
 
 import javax.swing.ImageIcon;
@@ -16,12 +17,14 @@ public class CarsDisplay implements Runnable
 	private JLabel label;
 	private CarsMain main;
 	
-	public CarsDisplay(String title, int width, int height, CarsMain main, KeyListener input)
+	public CarsDisplay(String title, int width, int height, CarsMain main, KeyListener input, MouseWheelListener wheel)
 	{
 		this.main = main;
 		frame = new JFrame(title);
 		if(input != null)
 			frame.addKeyListener(input);
+		if(wheel != null)
+			frame.addMouseWheelListener(wheel);
 		frame.setSize(width, height);
 		frame.setResizable(false);
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);

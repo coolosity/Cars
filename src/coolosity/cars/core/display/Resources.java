@@ -13,7 +13,10 @@ public class Resources
 {
 	private static final int[] BLOCKIDS = {0};
 	private static final String[] DATAIDS = {
-		"road", "4"
+		"road", "16"
+	};
+	private static final String[] IMGS = {
+		"car"
 	};
 	
 	private static HashMap<String,BufferedImage> images;
@@ -35,6 +38,10 @@ public class Resources
 				{
 					images.put(block+j, loadImage("res/"+block+j+".png"));
 				}
+			}
+			for(String s : IMGS)
+			{
+				images.put(s, loadImage("res/"+s+".png"));
 			}
 		}
 		catch(Exception e)

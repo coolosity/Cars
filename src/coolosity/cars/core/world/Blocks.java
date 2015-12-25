@@ -3,11 +3,12 @@ package coolosity.cars.core.world;
 import java.lang.reflect.Field;
 
 import coolosity.cars.core.world.block.Block;
+import coolosity.cars.core.world.block.BlockRoad;
 
 public class Blocks {
 
 	public static final Block grass = new Block(0);
-	public static final Block road = new Block(1);
+	public static final Block road = new BlockRoad(1);
 	
 	public static Block fromID(int id)
 	{

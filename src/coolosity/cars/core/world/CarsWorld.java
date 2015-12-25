@@ -117,7 +117,7 @@ public class CarsWorld
 	
 	public void draw(BufferedImage img, Camera camera)
 	{
-		int camblockview = 16;
+		int camblockview = 30;
 		
 		if(camera.getRotate())
 		{
@@ -210,17 +210,24 @@ public class CarsWorld
 		{
 			boolean grid = false;
 			boolean coords = false;
+			boolean showdata = false;
 			Graphics g = img.getGraphics();
 			{
-				double cbvx = camblockview;
+				double cbvx = camblockview/camera.getZoom();
 				double cbvy = img.getHeight()*1.0/img.getWidth()*cbvx;
 				double tlx = camera.getX()-cbvx/2;
 				double tly = camera.getY()-cbvy/2;
+				if(tlx<0)tlx = 0;
+				if(tly<0)tly = 0;
+				if(tlx+cbvx>blocks.length)tlx = blocks.length-cbvx;
+				if(tly+cbvy>blocks[0].length)tly = blocks[0].length-cbvy;
+				
 				double ppx = img.getWidth()*1.0/cbvx;
 				double ppy = img.getHeight()*1.0/cbvy;
 				double xoff = tlx-((int)tlx);
 				double yoff = tly-((int)tly);
 				g.setColor(Color.RED);
+				
 				
 				//blocks
 				for(int x=0;x<cbvx+1;x++)
@@ -232,11 +239,15 @@ public class CarsWorld
 						if(xx>=0 && yy>=0 && xx<blocks.length && yy<blocks[0].length)
 						{
 							Block b = blocks[xx][yy];
-							g.drawImage(Resources.getImage("block"+b.getID()), (int)((x-xoff)*ppx), (int)((y-yoff)*ppy), (int)(ppx)+1, (int)(ppy)+1, null);
+							g.drawImage(b.getImage(data[xx][yy]), (int)((x-xoff)*ppx), (int)((y-yoff)*ppy), (int)(ppx)+1, (int)(ppy)+1, null);
 							if(coords)
 							{
 								g.drawString(xx+"", (int)((x-xoff)*ppx+ppx/3), (int)((y-yoff)*ppy+ppy/3));
 								g.drawString(yy+"", (int)((x-xoff)*ppx+ppx/3), (int)((y-yoff)*ppy+ppy/3)+10);
+							}
+							if(showdata)
+							{
+								g.drawString(data[xx][yy]+"", (int)((x-xoff)*ppx+ppx/3), (int)((y-yoff)*ppy+ppy/3)+15);
 							}
 						}
 					}

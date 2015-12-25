@@ -2,6 +2,8 @@ package coolosity.cars.core;
 
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
+import java.awt.event.MouseWheelEvent;
+import java.awt.event.MouseWheelListener;
 import java.util.HashMap;
 
 import coolosity.cars.core.display.Camera;
@@ -9,7 +11,7 @@ import coolosity.cars.core.entities.Car;
 import coolosity.cars.core.entities.Location;
 import coolosity.cars.core.world.CarsWorld;
 
-public class CarsGame implements KeyListener
+public class CarsGame implements KeyListener, MouseWheelListener
 {
 	private static final int W = 87;
 	private static final int A = 65;
@@ -127,8 +129,12 @@ public class CarsGame implements KeyListener
 		player.setRotation(rot);
 		player.getLocation().setX(x);
 		player.getLocation().setY(y);
-		camera.setX(player.getLocation().getX()+player.getWidth()/2);
-		camera.setY(player.getLocation().getY()+player.getHeight()/2);
+		
+		double camx = player.getLocation().getX()+player.getWidth()/2;
+		double camy = player.getLocation().getY()+player.getHeight()/2;
+		
+		camera.setX(camx);
+		camera.setY(camy);
 		if(camera.getRotate())
 			camera.setRot(90-player.getRotation());
 	}
@@ -155,6 +161,14 @@ public class CarsGame implements KeyListener
 		keysPressed.put(e.getKeyCode(), false);
 	}
 
+	@Override
+	public void mouseWheelMoved(MouseWheelEvent e)
+	{
+		double nz = camera.getZoom()+e.getWheelRotation()*-0.1;
+		if(nz<0.1)nz = 0.1;
+		camera.setZoom(nz);
+	}
+	
 	@Override
 	public void keyTyped(KeyEvent e) {}
 }
