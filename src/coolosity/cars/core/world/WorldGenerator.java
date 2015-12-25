@@ -13,9 +13,9 @@ class Intersection
 {
 	
 	private Point p;
-	private HashMap<Integer,Point> dirs;
+	private HashMap<Integer,Path> dirs;
 	
-	public Intersection(Point p, HashMap<Integer,Point> dirs)
+	public Intersection(Point p, HashMap<Integer,Path> dirs)
 	{
 		this.p = p;
 		this.dirs = dirs;
@@ -23,7 +23,7 @@ class Intersection
 	
 	public Intersection(Point p)
 	{
-		this(p,new HashMap<Integer,Point>());
+		this(p,new HashMap<Integer,Path>());
 	}
 	
 	public Point getPoint()
@@ -31,7 +31,7 @@ class Intersection
 		return p;
 	}
 	
-	public HashMap<Integer,Point> getDirs()
+	public HashMap<Integer,Path> getDirs()
 	{
 		return dirs;
 	}
@@ -58,6 +58,11 @@ class Path
 	public Point getB()
 	{
 		return b;
+	}
+	
+	public Intersection getOther(Intersection i)
+	{
+		return i==ia?ib:ia;
 	}
 	
 	public Intersection getIA()
@@ -92,17 +97,31 @@ class Path
 	public ArrayList<Path> split(Point p, Intersection ip)
 	{
 		ArrayList<Path> spl = new ArrayList<Path>();
-		spl.add(new Path(a,p,ia,ip));
-		spl.add(new Path(p,b,ip,ib));
+		Path pa = new Path(a,p,ia,ip);
+		Path pb = new Path(p,b,ip,ib);
+		spl.add(pa);
+		spl.add(pb);
 		if(a.x==b.x)
 		{
-			ip.getDirs().put(1, a.y<b.y?a:b);
-			ip.getDirs().put(3, a.y>b.y?a:b);
+			Path up = a.y<b.y?pa:pb;
+			Path down = a.y>b.y?pa:pb;
+			Intersection iup = a.y<b.y?ia:ib;
+			Intersection idown = a.y>b.y?ia:ib;
+			iup.getDirs().put(3, up);
+			idown.getDirs().put(1, down);
+			ip.getDirs().put(1, up);
+			ip.getDirs().put(3, down);
 		}
 		else
 		{
-			ip.getDirs().put(0, a.x>b.x?a:b);
-			ip.getDirs().put(2, a.x<b.x?a:b);
+			Path left = a.x<b.x?pa:pb;
+			Path right = a.x>b.x?pa:pb;
+			Intersection ileft = a.x<b.x?ia:ib;
+			Intersection iright = a.x>b.x?ia:ib;
+			ileft.getDirs().put(0, left);
+			iright.getDirs().put(2, right);
+			ip.getDirs().put(0, right);
+			ip.getDirs().put(2, left);
 		}
 		return spl;
 	}
@@ -184,19 +203,32 @@ public class WorldGenerator
 			if(i.getDirs().size()==1)tofix.add(i);
 		}
 		CarsLogger.dev("Fixing intersection studs");
-		boolean changed = true;
-		while(tofix.size()>0 && changed)
+		while(tofix.size()>0)
 		{
-			changed = false;
-			for(int i=0;i<tofix.size()&&!changed;i++)
+			doFixes(tofix);
+			if(tofix.size()>0)
 			{
-				changed = fixIntersectionStuds(tofix.get(i));
-				if(changed)
-					tofix.remove(i);
+				Intersection i = tofix.get(r.nextInt(tofix.size()));
+				if(i.getDirs().size()==1)
+				{
+					for(int k : i.getDirs().keySet())
+					{
+						Path p = i.getDirs().get(k);
+						CarsLogger.dev("Removing path from ["+p.getA().x+", "+p.getA().y+"] to ["+p.getB().x+", "+p.getB().y+"]");
+						makePath(p.getA(),p.getB(),Blocks.grass);
+						p.getOther(i).getDirs().remove(opp(k));
+						paths.remove(p);
+					}
+					intersections.remove(i);
+				}
+				tofix.remove(i);
+			}
+			tofix.clear();
+			for(Intersection i : intersections)
+			{
+				if(i.getDirs().size()==1)tofix.add(i);
 			}
 		}
-		
-		
 		
 		//fix intersections data vals
 		for(Intersection i : intersections)
@@ -262,7 +294,7 @@ public class WorldGenerator
 			}
 			if(d.size()==4)
 			{
-				
+				data[p.x][p.y] = 16;
 			}
 			else if(d.contains(1) && d.contains(2) && d.contains(3))
 			{
@@ -299,8 +331,26 @@ public class WorldGenerator
 		}
 	}
 	
+	private void doFixes(ArrayList<Intersection> tofix)
+	{
+		CarsLogger.dev("Fixing "+tofix.size()+" intersections");
+		boolean changed = true;
+		while(tofix.size()>0 && changed)
+		{
+			CarsLogger.dev("start:");
+			changed = false;
+			for(int i=0;i<tofix.size()&&!changed;i++)
+			{
+				changed = fixIntersectionStuds(tofix.get(i));
+				if(changed)
+					tofix.remove(i);
+			}
+		}
+	}
+	
 	private boolean fixIntersectionStuds(Intersection i)
 	{
+		CarsLogger.dev("Fixing ["+i.getPoint().x+", "+i.getPoint().y+"]");
 		int dir = 0;
 		for(int k : i.getDirs().keySet())dir = k;
 		
@@ -349,14 +399,16 @@ public class WorldGenerator
 					}
 				}
 				k = new Intersection(p);
+				CarsLogger.dev("Adding intersection ["+p.x+", "+p.y+"] between ["+path.getA().x+", "+path.getA().y+"] and ["+path.getB().x+", "+path.getB().y+"]");
 				intersections.add(k);
 				ArrayList<Path> nPaths = path.split(p, k);
 				paths.addAll(nPaths);
 				paths.remove(path);
 			}
-			i.getDirs().put(newDir, p);
-			k.getDirs().put(opp(newDir), i.getPoint());
-			paths.add(new Path(new Point(i.getPoint()),new Point(p),i,k));
+			Path pn = new Path(new Point(i.getPoint()),new Point(p),i,k);
+			paths.add(pn);
+			i.getDirs().put(newDir, pn);
+			k.getDirs().put(opp(newDir), pn);
 			return true;
 		}
 		else
@@ -381,10 +433,11 @@ public class WorldGenerator
 			if(isValid(to))
 			{
 				makePath(cur,to,Blocks.road);
-				intersection.getDirs().put(dir,to);
 				Intersection n = new Intersection(new Point(to));
-				n.getDirs().put(opp(dir), cur);
-				paths.add(new Path(new Point(cur),new Point(to),intersection,n));
+				Path pn = new Path(new Point(cur),new Point(to),intersection,n);
+				paths.add(pn);
+				intersection.getDirs().put(dir,pn);
+				n.getDirs().put(opp(dir), pn);
 				roads(iter+1,to,dir,n);
 			}
 		}
@@ -517,7 +570,7 @@ public class WorldGenerator
 	
 	private void makePath(Point a, Point b, Block toset)
 	{
-		CarsLogger.dev("Road from ["+a.x+", "+a.y+"] to ["+b.x+", "+b.y+"]");
+		CarsLogger.dev("Path from ["+a.x+", "+a.y+"] to ["+b.x+", "+b.y+"] ("+toset.getID()+")");
 		int lx = a.x<b.x?a.x:b.x;
 		int hx = a.x>b.x?a.x:b.x;
 		int ly = a.y<b.y?a.y:b.y;

@@ -13,7 +13,7 @@ public class Resources
 {
 	private static final int[] BLOCKIDS = {0};
 	private static final String[] DATAIDS = {
-		"road", "16"
+		"road", "17"
 	};
 	private static final String[] IMGS = {
 		"car"
