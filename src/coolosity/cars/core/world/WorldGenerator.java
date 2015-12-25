@@ -184,69 +184,15 @@ public class WorldGenerator
 			if(i.getDirs().size()==1)tofix.add(i);
 		}
 		CarsLogger.dev("Fixing intersection studs");
-		while(tofix.size()>0)
+		boolean changed = true;
+		while(tofix.size()>0 && changed)
 		{
-			Intersection i = tofix.get(r.nextInt(tofix.size()));
-			tofix.remove(i);
-			int dir = 0;
-			for(int k : i.getDirs().keySet())dir = k;
-			
-			int newDir = r.nextInt(4);
-			Point p = null;
-			for(int j=0;j<2&&p==null;j++)
+			changed = false;
+			for(int i=0;i<tofix.size()&&!changed;i++)
 			{
-				newDir++;
-				if(newDir>=4)newDir=0;
-				while(newDir==dir || newDir==opp(dir))
-				{
-					newDir++;
-					if(newDir>=4)newDir=0;
-				}
-				int dist = getDistToNonGrass(i.getPoint(), newDir)+roadMinDist+1;
-				p = add(i.getPoint(),newDir,dist);
-				if(isValid(p))
-				{
-					if(blocks[p.x][p.y] != Blocks.road)
-					{
-						p = null;
-					}
-				}
-				else
-				{
-					p = null;
-				}
-			}
-			if(p != null && isValid(p))
-			{
-				makePath(i.getPoint(),p,Blocks.road);
-				Intersection k = null;
-				for(Intersection is : intersections)
-				{
-					if(is.getPoint().equals(p))
-						k = is;
-				}
-				if(k == null)
-				{
-					Path path = null;
-					for(Path pp : paths)
-					{
-						if(pp.contains(p))
-						{
-							path = pp;
-						}
-					}
-					k = new Intersection(p);
-					intersections.add(k);
-					ArrayList<Path> nPaths = path.split(p, k);
-					paths.addAll(nPaths);
-					paths.remove(path);
-				}
-				i.getDirs().put(newDir, p);
-				k.getDirs().put(opp(newDir), i.getPoint());
-			}
-			else
-			{
-				
+				changed = fixIntersectionStuds(tofix.get(i));
+				if(changed)
+					tofix.remove(i);
 			}
 		}
 		
@@ -350,6 +296,72 @@ public class WorldGenerator
 			{
 				data[p.x][p.y] = 4;
 			}
+		}
+	}
+	
+	private boolean fixIntersectionStuds(Intersection i)
+	{
+		int dir = 0;
+		for(int k : i.getDirs().keySet())dir = k;
+		
+		int newDir = r.nextInt(4);
+		Point p = null;
+		for(int j=0;j<2&&p==null;j++)
+		{
+			newDir++;
+			if(newDir>=4)newDir=0;
+			while(newDir==dir || newDir==opp(dir))
+			{
+				newDir++;
+				if(newDir>=4)newDir=0;
+			}
+			int dist = getDistToNonGrass(i.getPoint(), newDir)+roadMinDist+1;
+			p = add(i.getPoint(),newDir,dist);
+			if(isValid(p))
+			{
+				if(blocks[p.x][p.y] != Blocks.road)
+				{
+					p = null;
+				}
+			}
+			else
+			{
+				p = null;
+			}
+		}
+		if(p != null && isValid(p))
+		{
+			makePath(i.getPoint(),p,Blocks.road);
+			Intersection k = null;
+			for(Intersection is : intersections)
+			{
+				if(is.getPoint().equals(p))
+					k = is;
+			}
+			if(k == null)
+			{
+				Path path = null;
+				for(Path pp : paths)
+				{
+					if(pp.contains(p))
+					{
+						path = pp;
+					}
+				}
+				k = new Intersection(p);
+				intersections.add(k);
+				ArrayList<Path> nPaths = path.split(p, k);
+				paths.addAll(nPaths);
+				paths.remove(path);
+			}
+			i.getDirs().put(newDir, p);
+			k.getDirs().put(opp(newDir), i.getPoint());
+			paths.add(new Path(new Point(i.getPoint()),new Point(p),i,k));
+			return true;
+		}
+		else
+		{
+			return false;
 		}
 	}
 	
