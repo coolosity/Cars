@@ -33,7 +33,7 @@ public class CarsGame implements KeyListener, MouseWheelListener
 			keysPressed.put(D, false);
 		}
 		this.world = world;
-		this.camera = new Camera(world.getWidth()/2,world.getHeight()/2,1.0,0,cameraRotate);
+		this.camera = new Camera(world.getWidth()/2,world.getHeight()/2,1.0);
 		this.player = new Car(new Location(world.getWidth()/2,world.getHeight()/2), 8.0, 140, 7, 400, 5.0, 400);
 		player.getLocation().setX(player.getLocation().getX()-player.getWidth()/2);
 		player.getLocation().setY(player.getLocation().getY()-player.getHeight()/2);
@@ -135,8 +135,6 @@ public class CarsGame implements KeyListener, MouseWheelListener
 		
 		camera.setX(camx);
 		camera.setY(camy);
-		if(camera.getRotate())
-			camera.setRot(90-player.getRotation());
 	}
 	
 	public CarsWorld getWorld()

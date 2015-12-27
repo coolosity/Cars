@@ -2,10 +2,7 @@ package coolosity.cars.core.world;
 
 import java.awt.Color;
 import java.awt.Graphics;
-import java.awt.Graphics2D;
 import java.awt.Point;
-import java.awt.geom.AffineTransform;
-import java.awt.geom.Point2D;
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -18,13 +15,81 @@ import java.util.Random;
 import coolosity.cars.core.CarsException;
 import coolosity.cars.core.CarsLogger;
 import coolosity.cars.core.display.Camera;
-import coolosity.cars.core.display.Resources;
 import coolosity.cars.core.entities.Entity;
 import coolosity.cars.core.entities.Location;
 import coolosity.cars.core.world.block.Block;
 
 public class CarsWorld
 {
+	private static class WorldBuilding
+	{
+		private Building building;
+		private int x, y, rot;
+		
+		public WorldBuilding(Building building, int x, int y, int rot)
+		{
+			this.building = building;
+			this.x = x;
+			this.y = y;
+			this.rot = rot;
+		}
+		
+		public int getWidth()
+		{
+			return building.getWidth();
+		}
+		
+		public int getHeight()
+		{
+			return building.getHeight();
+		}
+		
+		public int getX()
+		{
+			return x;
+		}
+		
+		public int getY()
+		{
+			return y;
+		}
+		
+		public int getRot()
+		{
+			return rot;
+		}
+		
+		public void draw(BufferedImage img, int x, int y, int width, int height)
+		{
+			building.draw(img, x, y, width, height, rot);
+		}
+		
+		public boolean isVisible(double xx, double yy, double width, double height)
+		{
+			Point a1 = new Point(x,y);
+			Point b1 = new Point(x+building.getWidth(),y+building.getHeight());
+			
+			Point a, b;
+			switch(rot)
+			{
+			case 0:
+			case 2:
+				a = a1;
+				b = b1;
+				break;
+			default:
+				a = a1;
+				b = new Point(a.x+building.getHeight(),a.y+building.getWidth());
+				break;
+			}
+			
+			if(a.x>=xx && a.y>=yy && a.x<=xx+width && a.y<=yy+height)
+				return true;
+			if(b.x>=xx && b.y>=yy && b.x<=xx+width && b.y<=yy+height)
+				return true;
+			return false;
+		}
+	}
 	
 	public static CarsWorld loadFromFile(File file)
 	{
@@ -95,19 +160,21 @@ public class CarsWorld
 		Random r = new Random();
 		r.setSeed(generator.getSeed());
 		CarsWorld world = new CarsWorld(generator.getWidth(),generator.getHeight());
-		generator.generate(world.blocks, world.data, r);
+		generator.generate(world.blocks, world.data, r, world);
 		return world;
 	}
 	
 	private Block[][] blocks;
 	private int[][] data;
 	private ArrayList<Entity> entities;
+	private ArrayList<WorldBuilding> buildings;
 	
 	private CarsWorld(int width, int height)
 	{
 		this.blocks = new Block[width][height];
 		this.data = new int[width][height];
 		this.entities = new ArrayList<Entity>();
+		this.buildings = new ArrayList<WorldBuilding>();
 	}
 	
 	public void addEntity(Entity entity)
@@ -115,168 +182,101 @@ public class CarsWorld
 		entities.add(entity);
 	}
 	
+	public void addBuilding(Building building, int x, int y, int rot)
+	{
+		CarsLogger.dev("Adding building at ["+x+", "+y+"] ("+rot+")");
+		buildings.add(new WorldBuilding(building,x,y,rot));
+	}
+	
 	public void draw(BufferedImage img, Camera camera)
 	{
 		int camblockview = 30;
+		boolean grid = false;
+		boolean coords = false;
+		boolean showdata = false;
+		Graphics g = img.getGraphics();
+		double cbvx = camblockview/camera.getZoom();
+		double cbvy = img.getHeight()*1.0/img.getWidth()*cbvx;
+		double tlx = camera.getX()-cbvx/2;
+		double tly = camera.getY()-cbvy/2;
+		if(tlx<0)tlx = 0;
+		if(tly<0)tly = 0;
+		if(tlx+cbvx>blocks.length)tlx = blocks.length-cbvx;
+		if(tly+cbvy>blocks[0].length)tly = blocks[0].length-cbvy;
 		
-		if(camera.getRotate())
+		double ppx = img.getWidth()*1.0/cbvx;
+		double ppy = img.getHeight()*1.0/cbvy;
+		double xoff = tlx-((int)tlx);
+		double yoff = tly-((int)tly);
+		g.setColor(Color.RED);
+		
+		//blocks
+		for(int x=0;x<cbvx+1;x++)
 		{
-			int size = img.getWidth()*2;
-			boolean grid = false;
-			boolean coords = false;
-			double rot = Math.toRadians(camera.getRot());
-			BufferedImage ori = new BufferedImage(size,size,img.getType());
-			Graphics g = ori.getGraphics();
+			for(int y=0;y<cbvy+1;y++)
 			{
-				int cbv = camblockview*2;
-				double tlx = camera.getX()-cbv/2;
-				double tly = camera.getY()-cbv/2;
-				double ppx = ori.getWidth()*1.0/cbv;
-				double ppy = ori.getHeight()*1.0/cbv;
-				double xoff = tlx-((int)tlx);
-				double yoff = tly-((int)tly);
-				g.setColor(Color.RED);
-				
-				//blocks
-				for(int x=0;x<cbv;x++)
+				int xx = (int) (x+tlx);
+				int yy = (int) (y+tly);
+				if(xx>=0 && yy>=0 && xx<blocks.length && yy<blocks[0].length)
 				{
-					for(int y=0;y<cbv;y++)
+					Block b = blocks[xx][yy];
+					g.drawImage(b.getImage(data[xx][yy]), (int)((x-xoff)*ppx), (int)((y-yoff)*ppy), (int)(ppx)+1, (int)(ppy)+1, null);
+					if(coords)
 					{
-						int xx = (int) (x+tlx);
-						int yy = (int) (y+tly);
-						if(xx>=0 && yy>=0 && xx<blocks.length && yy<blocks[0].length)
-						{
-							Block b = blocks[xx][yy];
-							g.drawImage(Resources.getImage("block"+b.getID()), (int)((x-xoff)*ppx), (int)((y-yoff)*ppy), (int)(ppx)+1, (int)(ppy)+1, null);
-							if(coords)
-								g.drawString(xx+" "+yy, (int)((x-xoff)*ppx+ppx/3), (int)((y-yoff)*ppy+ppy/3));
-						}
+						g.drawString(xx+"", (int)((x-xoff)*ppx+ppx/3), (int)((y-yoff)*ppy+ppy/3));
+						g.drawString(yy+"", (int)((x-xoff)*ppx+ppx/3), (int)((y-yoff)*ppy+ppy/3)+10);
 					}
-				}
-				
-				//grid
-				g.setColor(Color.WHITE);
-				if(grid)
-				{
-					int t = 4;
-					for(int x=0;x<cbv;x++)
+					if(showdata)
 					{
-						g.fillRect((int)((x-xoff)*ppx)-t/2, 0, t, ori.getHeight());
-					}
-					for(int y=0;y<cbv;y++)
-					{
-						g.fillRect(0, (int)((y-yoff)*ppy)-t/2, ori.getWidth(), t);
-					}
-				}
-				
-				//entities
-				for(Entity entity : entities)
-				{
-					if(entity.getLocation().distance(camera.getX(),camera.getY())<Math.sqrt(2*Math.pow(camblockview, 2)))
-					{
-						Location l = entity.getLocation();
-						entity.draw(ori, (int)((l.getX()-tlx)*ppx), (int)((l.getY()-tly)*ppy), (int)(entity.getWidth()*ppx), (int)(entity.getHeight()*ppy), entity.getRotation());
+						g.drawString(data[xx][yy]+"", (int)((x-xoff)*ppx+ppx/3), (int)((y-yoff)*ppy+ppy/3)+15);
 					}
 				}
 			}
-			
-			AffineTransform trans = new AffineTransform();
-			trans.rotate(rot);
-			Point pt = new Point(ori.getWidth()/2,ori.getHeight()/2);
-			Point2D ptr = trans.transform(pt, null);
-			
-			AffineTransform identity = new AffineTransform();
-			identity.translate(ori.getWidth()/2-ptr.getX(), ori.getHeight()/2-ptr.getY());
-			identity.rotate(rot);
-			
-			BufferedImage rotated = new BufferedImage(ori.getWidth(),ori.getHeight(),ori.getType());
-			Graphics2D gg = (Graphics2D) rotated.getGraphics();
-			gg.drawImage(ori, identity, null);
-			
-			int xsize = (int) (rotated.getWidth()/camera.getZoom());
-			int ysize = (int) (rotated.getHeight()/camera.getZoom());
-			BufferedImage small = rotated.getSubimage((rotated.getWidth()-xsize)/2, (rotated.getHeight()-ysize)/2, xsize, ysize);
-			BufferedImage scaled = new BufferedImage(rotated.getWidth(),rotated.getHeight(),rotated.getType());
-			Graphics gs = scaled.getGraphics();
-			gs.drawImage(small, 0, 0, scaled.getWidth(), scaled.getHeight(), null);
-			
-			
-			BufferedImage todraw = scaled;
-			
-			Graphics gi = img.getGraphics();
-			gi.drawImage(todraw.getSubimage((todraw.getWidth()-img.getWidth())/2, (todraw.getHeight()-img.getHeight())/2, img.getWidth(), img.getHeight()),0,0,img.getWidth(),img.getHeight(),null);
 		}
-		else
+		
+		//buildings
+		for(WorldBuilding building : buildings)
 		{
-			boolean grid = false;
-			boolean coords = false;
-			boolean showdata = false;
-			Graphics g = img.getGraphics();
+			if(building.isVisible(tlx, tly, cbvx, cbvy))
 			{
-				double cbvx = camblockview/camera.getZoom();
-				double cbvy = img.getHeight()*1.0/img.getWidth()*cbvx;
-				double tlx = camera.getX()-cbvx/2;
-				double tly = camera.getY()-cbvy/2;
-				if(tlx<0)tlx = 0;
-				if(tly<0)tly = 0;
-				if(tlx+cbvx>blocks.length)tlx = blocks.length-cbvx;
-				if(tly+cbvy>blocks[0].length)tly = blocks[0].length-cbvy;
-				
-				double ppx = img.getWidth()*1.0/cbvx;
-				double ppy = img.getHeight()*1.0/cbvy;
-				double xoff = tlx-((int)tlx);
-				double yoff = tly-((int)tly);
-				g.setColor(Color.RED);
-				
-				
-				//blocks
-				for(int x=0;x<cbvx+1;x++)
+				double xx = building.getX()-tlx;
+				double yy = building.getY()-tly;
+				int width = (int)(ppx*building.getWidth());
+				int height = (int)(ppy*building.getHeight());
+				switch(building.getRot())
 				{
-					for(int y=0;y<cbvy+1;y++)
-					{
-						int xx = (int) (x+tlx);
-						int yy = (int) (y+tly);
-						if(xx>=0 && yy>=0 && xx<blocks.length && yy<blocks[0].length)
-						{
-							Block b = blocks[xx][yy];
-							g.drawImage(b.getImage(data[xx][yy]), (int)((x-xoff)*ppx), (int)((y-yoff)*ppy), (int)(ppx)+1, (int)(ppy)+1, null);
-							if(coords)
-							{
-								g.drawString(xx+"", (int)((x-xoff)*ppx+ppx/3), (int)((y-yoff)*ppy+ppy/3));
-								g.drawString(yy+"", (int)((x-xoff)*ppx+ppx/3), (int)((y-yoff)*ppy+ppy/3)+10);
-							}
-							if(showdata)
-							{
-								g.drawString(data[xx][yy]+"", (int)((x-xoff)*ppx+ppx/3), (int)((y-yoff)*ppy+ppy/3)+15);
-							}
-						}
-					}
+				case 1:
+				case 3:
+					int temp = width;
+					width = height;
+					height = temp;
 				}
-				
-				//grid
-				g.setColor(Color.WHITE);
-				if(grid)
-				{
-					int t = 4;
-					for(int x=0;x<cbvx+1;x++)
-					{
-						g.fillRect((int)((x-xoff)*ppx)-t/2, 0, t, img.getHeight());
-					}
-					for(int y=0;y<cbvy+1;y++)
-					{
-						g.fillRect(0, (int)((y-yoff)*ppy)-t/2, img.getWidth(), t);
-					}
-				}
-				
-				//entities
-				for(Entity entity : entities)
-				{
-					if(entity.getLocation().distance(camera.getX(),camera.getY())<Math.sqrt(2*Math.pow(camblockview, 2)))
-					{
-						Location l = entity.getLocation();
-						entity.draw(img, (int)((l.getX()-tlx)*ppx), (int)((l.getY()-tly)*ppy), (int)(entity.getWidth()*ppx), (int)(entity.getHeight()*ppy), entity.getRotation());
-					}
-				}
+				building.draw(img, (int)(xx*ppx), (int)(yy*ppy), width+1, height+1);
+			}
+		}
+		
+		//grid
+		g.setColor(Color.WHITE);
+		if(grid)
+		{
+			int t = 4;
+			for(int x=0;x<cbvx+1;x++)
+			{
+				g.fillRect((int)((x-xoff)*ppx)-t/2, 0, t, img.getHeight());
+			}
+			for(int y=0;y<cbvy+1;y++)
+			{
+				g.fillRect(0, (int)((y-yoff)*ppy)-t/2, img.getWidth(), t);
+			}
+		}
+		
+		//entities
+		for(Entity entity : entities)
+		{
+			if(entity.getLocation().distance(camera.getX(),camera.getY())<Math.sqrt(2*Math.pow(camblockview, 2)))
+			{
+				Location l = entity.getLocation();
+				entity.draw(img, (int)((l.getX()-tlx)*ppx), (int)((l.getY()-tly)*ppy), (int)(entity.getWidth()*ppx), (int)(entity.getHeight()*ppy), entity.getRotation());
 			}
 		}
 	}

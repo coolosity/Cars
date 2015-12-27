@@ -8,16 +8,12 @@ public class Camera
 	private double x;
 	private double y;
 	private double zoom;
-	private double rot;
-	private boolean rotate;
 	
-	public Camera(double x, double y, double zoom, double rot, boolean rotate)
+	public Camera(double x, double y, double zoom)
 	{
 		this.x = x;
 		this.y = y;
 		this.zoom = zoom;
-		this.rot = rot;
-		this.rotate = rotate;
 	}
 	
 	public void setLocation(Location l)
@@ -54,25 +50,5 @@ public class Camera
 	public void setZoom(double zoom)
 	{
 		this.zoom = zoom;
-	}
-	
-	public double getRot()
-	{
-		return rot;
-	}
-	
-	public void setRot(double rot)
-	{
-		this.rot = rot;
-	}
-	
-	public boolean getRotate()
-	{
-		return rotate;
-	}
-	
-	public void setRotate(boolean rotate)
-	{
-		this.rotate = rotate;
 	}
 }

@@ -20,7 +20,7 @@ public class CarsMain
 	
 	public CarsMain()
 	{
-		CarsWorld world = CarsWorld.generate(new WorldGenerator(200,200,1451071691033L));
+		CarsWorld world = CarsWorld.generate(new WorldGenerator(200,200,1451083229212L));
 		game = new CarsGame(world,false);
 		display = new CarsDisplay("Cars",800,600,this,game,game);
 		try {

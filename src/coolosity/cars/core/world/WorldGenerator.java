@@ -17,7 +17,7 @@ class Intersection
 	
 	public Intersection(Point p, HashMap<Integer,Path> dirs)
 	{
-		this.p = p;
+		this.p = new Point(p);
 		this.dirs = dirs;
 	}
 	
@@ -44,8 +44,8 @@ class Path
 	
 	public Path(Point a, Point b, Intersection ia, Intersection ib)
 	{
-		this.a = a;
-		this.b = b;
+		this.a = new Point(a);
+		this.b = new Point(b);
 		this.ia = ia;
 		this.ib = ib;
 	}
@@ -159,7 +159,7 @@ public class WorldGenerator
 		CarsLogger.info("Initialized world with size ["+width+", "+height+"] on seed "+seed);
 	}
 	
-	public void generate(Block[][] blocks, int[][] data, Random r)
+	public void generate(Block[][] blocks, int[][] data, Random r, CarsWorld world)
 	{
 		this.blocks = blocks;
 		this.data = data;
@@ -174,27 +174,61 @@ public class WorldGenerator
 			}
 		}
 		
-		int startSide = r.nextInt(4);
-		Point cur;
-		switch(startSide)
+		Point start, end;
+		switch(r.nextInt(2))
 		{
 		case 0:
-			cur = new Point(1,r.nextInt(blocks[0].length));
-			break;
-		case 1:
-			cur = new Point(r.nextInt(blocks.length),blocks[0].length-2);
-			break;
-		case 2:
-			cur = new Point(blocks.length-2,r.nextInt(blocks[0].length));
+			start = new Point(1,blocks[0].length/2);
+			end = new Point(blocks.length-2,blocks[0].length/2);
 			break;
 		default:
-			cur = new Point(r.nextInt(blocks.length),1);
+			start = new Point(blocks.length/2,1);
+			end = new Point(blocks.length/2,blocks[0].length-2);
 			break;
 		}
-		CarsLogger.dev("Starting road point: "+cur.toString());
+		buildRoads(start,end,roadMinDist,roadMaxDist);
+		ArrayList<Intersection> cln = new ArrayList<Intersection>(intersections);
+		int lastdir = r.nextInt(4);
+		for(Intersection i : cln)
+		{
+			if(r.nextInt(2)==0)
+			{
+				int dir = lastdir+2;
+				while(dir>=4)dir -= 4;
+				while(i.getDirs().containsKey(dir))
+				{
+					dir++;
+					if(dir>=4)dir=0;
+				}
+				lastdir = dir;
+				Point str = i.getPoint();
+				Point ed;
+				switch(dir)
+				{
+				case 0:
+					ed = new Point(blocks.length-2,str.y);
+					break;
+				case 1:
+					ed = new Point(str.x,1);
+					break;
+				case 2:
+					ed = new Point(1,str.y);
+					break;
+				default:
+					ed = new Point(str.x,blocks[0].length-2);
+					break;
+				}
+				buildRoads(str, ed, roadMinDist, roadMaxDist);
+			}
+		}
 		
+		cln.clear();
+		cln.addAll(intersections);
 		//make roads
-		roads(0,cur,-1,new Intersection(new Point(cur)));
+		for(Intersection i : cln)
+		{
+			roads(0,i.getPoint(),-1,i);
+		}
 		
 		//fix intersection studs
 		ArrayList<Intersection> tofix = new ArrayList<Intersection>();
@@ -249,6 +283,7 @@ public class WorldGenerator
 				data[p.x+1][p.y-1] = 2;
 				data[p.x+1][p.y] = 3;
 				data[p.x+1][p.y+1] = 2;
+				data[p.x][p.y] = 3;
 			}
 			else
 			{
@@ -261,6 +296,7 @@ public class WorldGenerator
 				data[p.x-1][p.y-1] = 0;
 				data[p.x][p.y-1] = 1;
 				data[p.x+1][p.y-1] = d.contains(0)?10:0;
+				data[p.x][p.y] = 1;
 			}
 			else
 			{
@@ -273,6 +309,7 @@ public class WorldGenerator
 				data[p.x-1][p.y-1] = d.contains(1)?11:2;
 				data[p.x-1][p.y] = 3;
 				data[p.x-1][p.y+1] = 2;
+				data[p.x][p.y] = 3;
 			}
 			else
 			{
@@ -285,6 +322,7 @@ public class WorldGenerator
 				data[p.x-1][p.y+1] = d.contains(2)?9:0;
 				data[p.x][p.y+1] = 1;
 				data[p.x+1][p.y+1] = d.contains(0)?8:0;
+				data[p.x][p.y] = 1;
 			}
 			else
 			{
@@ -329,6 +367,93 @@ public class WorldGenerator
 				data[p.x][p.y] = 4;
 			}
 		}
+		
+		//buildings
+		Building[] onlyOne = {
+				
+		};
+	}
+	
+	private void buildRoads(Point a, Point b, int minspace, int maxspace)
+	{
+		CarsLogger.dev("Building roads from ["+a.x+", "+a.y+"] to ["+b.x+", "+b.y+"]");
+		int lx = a.x<b.x?a.x:b.x;
+		int hx = a.x>b.x?a.x:b.x;
+		int ly = a.y<b.y?a.y:b.y;
+		int hy = a.y>b.y?a.y:b.y;
+		Intersection old = getIntersection(new Point(lx,ly));
+		if(old==null)
+		{
+			old = new Intersection(new Point(lx,ly));
+			intersections.add(old);
+		}
+		Point cur = new Point(old.getPoint());
+		if(ly==hy)
+		{
+			for(int x=lx+minspace;x<=hx;)
+			{
+				cur.x = x;
+				Intersection n = getIntersection(cur);
+				CarsLogger.dev("Adding intersection at ["+cur.x+", "+cur.y+"]");
+				if(n==null)
+				{
+					n = new Intersection(cur);
+					intersections.add(n);
+				}
+				Path p = new Path(old.getPoint(),n.getPoint(),old,n);
+				paths.add(p);
+				old.getDirs().put(0, p);
+				n.getDirs().put(2, p);
+				old = n;
+				makePath(p.getA(),p.getB(),Blocks.road);
+				if(x<hx)
+				{
+					x += minspace+r.nextInt(maxspace-minspace+1);
+					if(x>hx)x = hx;
+				}
+				else
+				{
+					x++;
+				}
+			}
+		}
+		else
+		{
+			for(int y=ly+minspace;y<=hy;)
+			{
+				cur.y = y;
+				CarsLogger.dev("Adding intersection at ["+cur.x+", "+cur.y+"]");
+				Intersection n = getIntersection(cur);
+				if(n==null)
+				{
+					n = new Intersection(cur);
+					intersections.add(n);
+				}
+				Path p = new Path(old.getPoint(),n.getPoint(),old,n);
+				paths.add(p);
+				old.getDirs().put(3, p);
+				n.getDirs().put(1, p);
+				old = n;
+				makePath(p.getA(),p.getB(),Blocks.road);
+				if(y<hy)
+				{
+					y += minspace+r.nextInt(maxspace-minspace+1);
+					if(y>hy)y = hy;
+				}
+				else
+				{
+					y++;
+				}
+			}
+		}
+	}
+	
+	private Intersection getIntersection(Point p)
+	{
+		for(Intersection i : intersections)
+			if(i.getPoint().equals(p))
+				return i;
+		return null;
 	}
 	
 	private void doFixes(ArrayList<Intersection> tofix)
